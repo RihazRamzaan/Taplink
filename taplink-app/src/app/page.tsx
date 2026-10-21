@@ -63,12 +63,12 @@ export default function HomePage() {
           style={{ animationDelay: "0.35s" }}
         >
           {[
-            "🎨 5 Themes",
-            "🔗 Unlimited Links",
-            "📊 Click Analytics",
-            "🚀 Self-Hostable",
-            "🔒 Privacy-First",
-            "✉️ Email Verification",
+            "5+ Themes",
+            "Unlimited Links",
+            "Click Analytics",
+            "Self-Hostable",
+            "Privacy-First",
+            "Email Verification",
           ].map((f) => (
             <span
               key={f}
