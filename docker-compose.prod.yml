@@ -1,0 +1,54 @@
+services:
+  app:
+    build:
+      context: ./taplink-app
+      dockerfile: Dockerfile
+      target: runner
+    container_name: taplink-app-prod
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-Taplink}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - MONGODB_URI=mongodb://mongodb:27017/taplink?replicaSet=rs0&directConnection=true
+      - MONGODB_REPLICA_SET=rs0
+      - SMTP_HOST=${SMTP_HOST:-mailpit}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@taplink.local}
+      - REQUIRE_EMAIL_VERIFICATION=${REQUIRE_EMAIL_VERIFICATION:-false}
+    volumes:
+      - taplink_uploads:/app/public/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  mongodb:
+    image: mongo:7.0
+    container_name: taplink-mongodb-prod
+    restart: unless-stopped
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "mongosh --quiet --eval 'try { rs.initiate({ _id: \"rs0\", members: [{ _id: 0, host: \"mongodb:27017\" }] }).ok } catch (e) { rs.status().ok }' | grep 1"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  mongo_data:
+    name: taplink_mongo_data_prod
+  mongo_config:
+    name: taplink_mongo_config_prod
+  taplink_uploads:
+    name: taplink_uploads_prod

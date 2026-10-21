@@ -1,0 +1,73 @@
+services:
+  # ── Next.js Web Application (Development with Hot Reloading) ─────────────
+  app:
+    build:
+      context: ./taplink-app
+      dockerfile: Dockerfile
+      target: development
+    container_name: taplink-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - NEXT_PUBLIC_APP_NAME=Taplink
+      - AUTH_SECRET=${AUTH_SECRET:-dev-secret-change-in-production-32chars}
+      - MONGODB_URI=mongodb://mongodb:27017/taplink?replicaSet=rs0&directConnection=true
+      - MONGODB_REPLICA_SET=rs0
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_SECURE=false
+      - EMAIL_FROM=noreply@taplink.local
+      - REQUIRE_EMAIL_VERIFICATION=false
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./taplink-app:/app
+      - /app/node_modules
+      - /app/.next
+      - taplink_uploads:/app/public/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  # ── MongoDB with Single-Node Replica Set ─────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: taplink-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "mongosh --quiet --eval 'try { rs.initiate({ _id: \"rs0\", members: [{ _id: 0, host: \"mongodb:27017\" }] }).ok } catch (e) { rs.status().ok }'"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ── Mailpit (Local Email Testing UI & SMTP Server) ───────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: taplink-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI for viewing outgoing emails
+    environment:
+      MP_MAX_MESSAGES: 500
+
+volumes:
+  mongo_data:
+    name: taplink_mongo_data
+  mongo_config:
+    name: taplink_mongo_config
+  taplink_uploads:
+    name: taplink_uploads
